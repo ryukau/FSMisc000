@@ -1,0 +1,3 @@
+requirejs(['scene'], function(scene) {
+       
+});

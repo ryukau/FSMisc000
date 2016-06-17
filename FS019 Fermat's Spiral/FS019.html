@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>FS 019 Fermat's Spiral</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+        
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            
+			uniform float time;
+			uniform vec2 resolution;
+			uniform sampler2D tPrev;
+            
+            uniform float sceneScale;
+            uniform float dotSize;
+            uniform float dotDensity; // N_spiral が正のときは大きく、負のときは小さく設定すると面白い模様が出る
+            uniform float N_spiral; // theta ^ (1/N) の N, Archimedean Spiral
+            const int N_rot = 3;
+
+			varying vec2 vUv;
+            
+            
+            //
+            // 便利関数
+            //
+            vec2 normalizedPosition()
+            {
+                return -1.0 + 2.0 * vUv;
+            }
+            
+            float rand(vec2 co){
+                return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+            }
+            
+            vec2 rotate (vec2 p, float theta)
+            {
+                return vec2(
+                    p.x * cos(theta) - p.y * sin(theta), 
+                    p.x * sin(theta) + p.y * cos(theta)
+                    );
+            }
+            
+            //
+            // scene
+            //
+            
+            float spiral(vec2 p)
+            {
+                float r, theta;
+                if (0.0 <= N_spiral)
+                {
+                    theta = time * dotDensity;
+                    r = pow(theta, 1.0 / N_spiral);
+                }
+                else
+                {
+                    r = time * dotDensity;
+                    theta = pow(r, N_spiral);
+                }
+                
+                vec2 p1 = vec2(
+                    r * cos(theta),
+                    r * sin(theta)
+                    );
+                
+                float temp = float(N_rot);
+                float cc = M_PI * 2.0 / float(N_rot);
+                for (int i = 0; i < N_rot; ++i)
+                {
+                    vec2 p2 = rotate(p1, float(i) * cc);
+                    temp -= clamp(length((p * sceneScale + p2) * dotSize), 0.0, 1.0);
+                }
+                
+                return temp;
+            }
+            
+            //
+            // main
+            //
+			void main()
+            {
+                float l = spiral(normalizedPosition());
+                
+                if (time <= 0.0)
+                    gl_FragColor = vec4(vec3(0.0), 1.0 );
+                else
+                    gl_FragColor = vec4(
+                        0.5 * (l + mod(texture2D(tPrev, vUv).b * 12.5, 1.0)),
+                        mod(texture2D(tPrev, vUv).r * 37.11, 1.0),
+                        mod(texture2D(tPrev, vUv).g * 7.4, 1.0),
+                        1.0 );
+			}
+        </script>
+
+        <script id="vertexShader" type="x-shader/x-fragment">
+            varying vec2 vUv;
+            
+            void main()
+            {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        </script>
+	</head>
+	<body>
+		<p>
+			<input id="buttonReset" type="button" value="Reset" onclick="onButtonResetClick()">
+			<input id="buttonStop" type="button" value="Stop" onclick="onButtonStopClick()">
+            / Scale <input id="rangeSceneScale" type="range" value="16.0" min="1.0" max="32.0" step="0.1" oninput="onInputRangeSceneScale(this.value)">
+            / Dot Size <input id="rangeDotSize" type="range" value="4.0" min="1.0" max="7.0" step="0.1" oninput="onInputRangeDotSize(this.value)">
+            / Dot Density <input id="rangeDotDensity" type="range" value="5.0" min="0.1" max="32.0" step="0.1" oninput="onInputRangeDotDensity(this.value)">
+            / N <input id="numberN_spiral" type="number" value="2.0" min="-8.0" max="8.0" step="0.1" oninput="onInputNumberN_spiral(this.value)">
+		</p>
+        
+        <script src="js/three.min.js"></script>
+        <script src="js/scene.js"></script>
+	</body>
+</html>

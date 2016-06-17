@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset=utf-8>
+		<title>FS 005</title>
+		<style>
+			body { margin: 0; }
+			canvas { width: 100%; height: 100% }
+		</style>
+        
+        <script id="fragmentShader" type="x-shader/x-fragment">
+            #define M_PI 3.1415926535897932384626433832795
+            
+			uniform float time;
+			uniform vec2 resolution;
+
+			varying vec2 vUv;
+            
+            //
+            // 便利な関数
+            //
+            vec2 normalizedPosition()
+            {
+                //return -1.0 + 2.0 * vUv; // これはアスペクト比によって歪む
+                return (gl_FragCoord.xy * 2.0 - resolution) / min(resolution.x, resolution.y);
+            }
+            
+            float cosh(float val)
+            {
+                float tmp = exp(val);
+                float cosH = (tmp + 1.0 / tmp) / 2.0;
+                return cosH;
+            }
+            
+            float tanh(float val)
+            {
+                float tmp = exp(val);
+                float tanH = (tmp - 1.0 / tmp) / (tmp + 1.0 / tmp);
+                return tanH;
+            }
+            
+            float sinh(float val)
+            {
+                float tmp = exp(val);
+                float sinH = (tmp - 1.0 / tmp) / 2.0;
+                return sinH;
+            }
+            
+            vec2 rotate(vec2 p, float theta) // p: position
+            {
+                return vec2(
+                    p.x * cos(theta) - p.y * sin(theta), 
+                    p.x * sin(theta) + p.y * cos(theta)
+                    );
+            }
+            
+            //
+            // 場面
+            //
+            float circle(vec2 p) // p: position
+            {
+                return floor(p.x * p.x + p.y * p.y);// * 0.1;
+                //return p.x * p.x + p.y * p.y;
+            }
+            
+            const float zoom = 3.0;
+            const float rotSpeed = 0.2; 
+            const int circles = 3;
+            float render()
+            {
+                vec2 position = normalizedPosition();
+                
+                float o = 0.0;
+                float phase = 0.0;
+                
+                for (int i = 0; i < circles; ++i)
+                {
+                    phase = 2.0 * M_PI * float(i) / float(circles) + time * rotSpeed;
+                    o += circle(position * zoom * sin(time / zoom) + vec2(sin(phase), cos(phase)));
+                }
+                 
+                return o;
+                //return circle(position * 3.0 + vec2(sin(time), cos(time)));
+            }
+            
+            /////////////////////////////////////////////////
+            const int circlesR = 21;
+            const int circlesG = 24;
+            const int circlesB = 27;
+            float renderR()
+            {
+                vec2 position = normalizedPosition();
+                
+                float o = 0.0;
+                float phase = 0.0;
+                
+                for (int i = 0; i < circlesR; ++i)
+                {
+                    phase = 2.0 * M_PI * float(i) / float(circles);
+                    o += circle(position * 1.0 * sin(time * 0.087) + vec2(sin(phase + sin(time * 0.57)), cos(phase + time * 0.57)));
+                }
+                 
+                return o;
+                //return circle(position * 3.0 + vec2(sin(time), cos(time)));
+            }
+            float renderG()
+            {
+                vec2 position = normalizedPosition();
+                
+                float o = 0.0;
+                float phase = 0.0;
+                
+                for (int i = 0; i < circlesG; ++i)
+                {
+                    phase = 2.0 * M_PI * float(i) / float(circles);
+                    o += circle(position * 1.0 * sin(time * 0.41) + vec2(sin(phase + cos(time * 0.61)), cos(phase + time * 0.61)));
+                }
+                 
+                return o;
+                //return circle(position * 3.0 + vec2(sin(time), cos(time)));
+            }
+            float renderB()
+            {
+                vec2 position = normalizedPosition();
+                
+                float o = 0.0;
+                float phase = 0.0;
+                
+                for (int i = 0; i < circlesB; ++i)
+                {
+                    phase = 2.0 * M_PI * float(i) / float(circles);
+                    o += circle(position * 1.0 * sin(time * 0.1) + vec2(sin(phase + sin(time * 0.3)), cos(phase + cos(time * 0.3))));
+                }
+                 
+                return o;
+                //return circle(position * 3.0 + vec2(sin(time), cos(time)));
+            }
+            ////////////////////////////////////////////////////////
+            
+            float mask()
+            {
+                return 1.0 - circle(normalizedPosition());
+            }
+            
+            void hippie()
+            {
+                float r = abs(sin(time * 0.44587 + 0.6546)) * mod(renderR(), 2.0);// * mask();
+                float g = sin(time) * mod(renderG(), 2.0);// * mask();
+                float b = abs(sin(time * 0.6164 + 0.33)) * mod(renderB(), 2.0);// * mask();
+                
+                float r1 = r * r + sinh(g * g);
+                float g1 = g * g + cosh(b * b);
+                float b1 = b * b + tanh(r * r); 
+                
+                gl_FragColor = vec4(r1, g1, b1, 1.0);
+            }
+            
+            void monotone()
+            {
+                //float l = render();
+                float l = 1.0 - mod(render(), 2.0) * mask();
+                
+                gl_FragColor = vec4(vec3(l), 1.0);
+            }
+
+			void main()
+            {
+                monotone();
+                //hippie();
+			}
+        </script>
+
+        <script id="vertexShader" type="x-shader/x-fragment">
+            varying vec2 vUv;
+            
+            void main()
+            {
+                vUv = uv;
+                vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        </script>
+        <script data-main="js/main" src="js/require.js"></script>
+	</head>
+	<body>
+	</body>
+</html>
